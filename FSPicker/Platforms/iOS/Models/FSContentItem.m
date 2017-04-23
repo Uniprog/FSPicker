@@ -26,17 +26,59 @@
     return self;
 }
 
+- (instancetype)initWithGTLRDriveFile:(GTLRDrive_File *)file {
+    if (self = [super init]) {
+        
+        NSDictionary* dictionary = file.JSON;
+        
+        _fileName = dictionary[@"name"];
+        _linkPath = dictionary[@"id"];
+        _mimeType = dictionary[@"mimeType"];
+        _modified = dictionary[@"modifiedTime"];
+        NSArray* dateComponents = [_modified componentsSeparatedByString:@"T"];
+        if (dateComponents.count == 2) {
+            _modified = dateComponents.firstObject;
+        }
+        
+        _size = dictionary[@"size"];
+        
+        _thumbnailURL = dictionary[@"thumbnailLink"];
+        _isDirectory = [_mimeType isEqualToString:@"application/vnd.google-apps.folder"];
+        _itemCount = [self dictionaryToItemCount:dictionary];
+        _thumbExists = [dictionary[@"hasThumbnail"] boolValue];
+        
+        _fileExtension = dictionary[@"fileExtension"];
+        _fullFileExtension = dictionary[@"fullFileExtension"];
+
+    }
+    
+    return self;
+}
+
 + (NSArray<FSContentItem *> *)itemsFromResponseJSON:(NSDictionary *)json {
     NSArray<NSDictionary *> *content = [[NSArray alloc] initWithArray:json[@"contents"]];
     NSMutableArray<FSContentItem *> *items = [[NSMutableArray alloc] init];
-
+    
     for (NSDictionary *item in content) {
         FSContentItem *contentItem = [[FSContentItem alloc] initWithDictionary:item];
         [items addObject:contentItem];
     }
-
+    
     return items;
 }
+
++ (NSArray<FSContentItem *> *)itemsFromGTLRDriveFileList:(GTLRDrive_FileList *)fileList {
+    //NSArray<NSDictionary *> *content = [[NSArray alloc] initWithArray:json[@"contents"]];
+    NSMutableArray<FSContentItem *> *items = [[NSMutableArray alloc] init];
+    
+    for (GTLRDrive_File* file in fileList.files) {
+        FSContentItem *contentItem = [[FSContentItem alloc] initWithGTLRDriveFile:file];
+        [items addObject:contentItem];
+    }
+    
+    return items;
+}
+
 
 - (NSNumber *)dictionaryToItemCount:(NSDictionary *)dictionary {
     if (dictionary[@"count"]) {

@@ -7,6 +7,8 @@
 //
 
 @import Foundation;
+#import "GTLRDrive.h"
+
 
 @interface FSContentItem : NSObject
 
@@ -21,6 +23,9 @@
 @property (nonatomic, assign, readonly) BOOL isDirectory;
 @property (nonatomic, assign, readonly) BOOL thumbExists;
 
-+ (NSArray<FSContentItem *> *)itemsFromResponseJSON:(NSDictionary *)json;
+@property (nonatomic, copy) NSString *fileExtension;
+@property (nonatomic, copy) NSString *fullFileExtension;
 
++ (NSArray<FSContentItem *> *)itemsFromResponseJSON:(NSDictionary *)json;
++ (NSArray<FSContentItem *> *)itemsFromGTLRDriveFileList:(GTLRDrive_FileList *)fileList;
 @end
