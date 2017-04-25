@@ -125,6 +125,10 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
                                               @"https://www.googleapis.com/auth/drive.readonly"];
     }
     
+    if ([self.source.identifier isEqualToString:FSSourceGmail] && 0) {
+        [GIDSignIn sharedInstance].scopes = @[@"https://www.googleapis.com/auth/userinfo.email"];
+    }
+    
     [self.activityIndicator startAnimating];
     [GIDSignIn.sharedInstance signIn];
 }

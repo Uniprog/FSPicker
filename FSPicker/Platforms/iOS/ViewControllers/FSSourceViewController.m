@@ -263,16 +263,6 @@
 
 - (void)loadGoogleServiceSourceContent:(void (^)(BOOL success))completion isNextPage:(BOOL)isNextPage {
     
-//    if ([[GIDSignIn sharedInstance] hasAuthInKeychain]){
-//    
-//    }else{
-//        [self authenticateWithGoogleSource];
-//    }
-//    
-//
-
-    //return;
-    
     if (self.initialContentLoad) {
         self.initialContentLoad = NO;
         [self.activityIndicator startAnimating];
@@ -324,48 +314,54 @@
         
     }
     
-    return;
-    
-    FSSession *session = [[FSSession alloc] initWithConfig:self.config mimeTypes:self.source.mimeTypes];
-    
-    if (self.nextPage) {
-        session.nextPage = self.nextPage;
+    //! Gmail
+    if ([self.source.identifier isEqualToString:FSSourceGmail]) {
+        
+        GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
+        query.fields = @"kind,nextPageToken,files";
+        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
+        
+        query.orderBy = @"folder,name";
+        
+        if (self.loadPath) {
+            query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
+        }else{
+            query.q = [NSString stringWithFormat:@"'%@' IN parents", @"root"];
+        }
+        
+        
+        if (self.nextPage) {
+            query.pageToken = self.nextPage;
+        }
+        
+        self.fileListTicket = [self.config.service executeQuery:query
+                                              completionHandler:^(GTLRServiceTicket *callbackTicket,
+                                                                  GTLRDrive_FileList *fileList,
+                                                                  NSError *callbackError) {
+                                                  [self.activityIndicator stopAnimating];
+                                                  
+                                                  if (callbackError.code == 403) {
+                                                      [self authenticateWithCurrentSource];
+                                                      return;
+                                                  }
+                                                  
+                                                  self.nextPage = fileList.nextPageToken;
+                                                  
+                                                  NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
+                                                  [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  
+                                                  self.fileListTicket = nil;
+                                                  
+                                                  if (completion) {
+                                                      completion(callbackError == nil);
+                                                  }
+                                                  
+                                              }];
+        
     }
-    
-    NSDictionary *parameters = [session toQueryParametersWithFormat:@"info"];
-    NSString *contentPath = self.loadPath ? self.loadPath : self.source.rootPath;
-    
-    [Filestack getContentForPath:contentPath parameters:parameters completionHandler:^(NSDictionary *responseJSON, NSError *error) {
-        [self.activityIndicator stopAnimating];
-        
-        id nextPage = responseJSON[@"next"];
-        
-        if (nextPage && nextPage != [NSNull null]) {
-            self.nextPage = [nextPage respondsToSelector:@selector(stringValue)] ? [nextPage stringValue] : nextPage;
-            self.lastPage = NO;
-        } else {
-            self.lastPage = self.nextPage != nil;
-            self.nextPage = nil;
-        }
-        
-        if (error) {
-            self.nextPage = nil;
-            self.lastPage = NO;
-            [self enableRefreshControls];
-            [self showAlertWithError:error];
-        } else if (responseJSON[@"auth"]) {
-            [self authenticateWithCurrentSource];
-        } else {
-            [self enableUI];
-            NSArray *items = [FSContentItem itemsFromResponseJSON:responseJSON];
-            [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
-            [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
-        }
-        
-        if (completion) {
-            completion(error == nil);
-        }
-    }];
+
+  
 }
 
 

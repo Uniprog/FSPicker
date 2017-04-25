@@ -176,6 +176,11 @@
                         [self updateProgress:uploadedItems total:totalNumberOfItems];
                         [self messageDelegateWithBlob:blob error:error];
                         
+                        if (!self.config.shouldDownload) {
+                            //! Remove uploaded file
+                            [[NSFileManager defaultManager] removeItemAtURL:fileURL error:nil];
+                        }
+                        
                         if (uploadedItems == totalNumberOfItems) {
                             [self finishUpload];
                         }

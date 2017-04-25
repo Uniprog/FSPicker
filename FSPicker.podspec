@@ -49,7 +49,7 @@ Pod::Spec.new do |s|
     s.ios.dependency 'Google/SignIn'
     s.ios.dependency 'GoogleAPIClientForREST'
     s.ios.dependency 'GoogleAPIClientForREST/Drive'
-
+    s.ios.dependency 'GoogleAPIClientForREST/Gmail'
 
 
 end
