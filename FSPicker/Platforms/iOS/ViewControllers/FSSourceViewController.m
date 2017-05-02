@@ -209,7 +209,7 @@
 
 - (void)loadSourceContent:(void (^)(BOOL success))completion isNextPage:(BOOL)isNextPage {
     
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
         [self loadGoogleServiceSourceContent:completion isNextPage:isNextPage];
         return;
     }
@@ -317,45 +317,103 @@
     //! Gmail
     if ([self.source.identifier isEqualToString:FSSourceGmail]) {
         
-        GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
-        query.fields = @"kind,nextPageToken,files";
-        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
-        
-        query.orderBy = @"folder,name";
-        
         if (self.loadPath) {
-            query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
-        }else{
-            query.q = [NSString stringWithFormat:@"'%@' IN parents", @"root"];
+            
+            GTLRGmailQuery_UsersMessagesGet* mq = [GTLRGmailQuery_UsersMessagesGet queryWithUserId:@"me" identifier:self.loadPath];
+            [self.config.gmailService executeQuery:mq
+                                 completionHandler:^(GTLRServiceTicket * _Nonnull callbackTicket,
+                                                     GTLRGmail_Message* message,
+                                                     NSError * _Nullable callbackError) {
+                                     [self.activityIndicator stopAnimating];
+
+                                     NSLog(@"%@", message.JSON);
+                                     
+                                     NSArray *items = [FSContentItem itemsFromGTLRGmailMessage:message];
+                                     [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                     [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                     
+                                     self.fileListTicket = nil;
+                                     
+                                     if (completion) {
+                                         completion(callbackError == nil);
+                                     }
+                                     
+                                 }];
+
+            return;
         }
         
+        GTLRGmailQuery_UsersMessagesList *query = [GTLRGmailQuery_UsersMessagesList queryWithUserId:@"me"];
+        query.fields = @"nextPageToken,messages";
+        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
+        
+        //query.orderBy = @"folder,name";
+        //“has:attachment in:inbox”
+        query.q = [NSString stringWithFormat:@"has:attachment in:inbox"];
+        query.maxResults = 20;
         
         if (self.nextPage) {
             query.pageToken = self.nextPage;
         }
         
-        self.fileListTicket = [self.config.service executeQuery:query
+        dispatch_group_t serviceGroup = dispatch_group_create();
+
+        self.fileListTicket = [self.config.gmailService executeQuery:query
                                               completionHandler:^(GTLRServiceTicket *callbackTicket,
-                                                                  GTLRDrive_FileList *fileList,
+                                                                  GTLRGmail_ListMessagesResponse *fileList,
                                                                   NSError *callbackError) {
-                                                  [self.activityIndicator stopAnimating];
                                                   
-                                                  if (callbackError.code == 403) {
+                                                  if (callbackError.code == 403 || callbackError.code == 401) {
                                                       [self authenticateWithCurrentSource];
                                                       return;
                                                   }
                                                   
                                                   self.nextPage = fileList.nextPageToken;
                                                   
-                                                  NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
-                                                  [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
-                                                  [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
-                                                  
-                                                  self.fileListTicket = nil;
-                                                  
-                                                  if (completion) {
-                                                      completion(callbackError == nil);
+                                                  if (self.nextPage) {
+                                                      self.lastPage = NO;
+                                                  } else {
+                                                      self.lastPage = YES;
                                                   }
+                                                  
+                                                  NSMutableArray* messages = [fileList.messages mutableCopy];
+                                                  
+                                                  
+                                                  for (GTLRGmail_Message* m in fileList.messages) {
+                                                      GTLRGmailQuery_UsersMessagesGet* mq = [GTLRGmailQuery_UsersMessagesGet queryWithUserId:@"me" identifier:m.identifier];
+                                                      
+                                                      dispatch_group_enter(serviceGroup);
+                                                      [self.config.gmailService executeQuery:mq
+                                                                           completionHandler:^(GTLRServiceTicket * _Nonnull callbackTicket,
+                                                                                               GTLRGmail_Message* message,
+                                                                                               NSError * _Nullable callbackError) {
+                                                                               NSLog(@"%@", message.JSON);
+                                                                               for (GTLRGmail_Message* m in fileList.messages){
+                                                                                   if ([m.identifier isEqualToString:message.identifier]) {
+                                                                                       [messages replaceObjectAtIndex:[fileList.messages indexOfObject:m] withObject:message];
+                                                                                   }
+                                                                               }
+                                                                               
+                                                                               dispatch_group_leave(serviceGroup);
+                                                                           }];
+                                                  }
+                                                  
+                                                  
+                                                  dispatch_group_notify(serviceGroup,dispatch_get_main_queue(),^{
+                                                      // Won't get here until everything has finished
+                                                      [self.activityIndicator stopAnimating];
+
+                                                      NSArray *items = [FSContentItem itemsFromGTLRGmailMessages:messages];
+                                                      [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                      [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                      
+                                                      self.fileListTicket = nil;
+                                                      
+                                                      if (completion) {
+                                                          completion(callbackError == nil);
+                                                      }
+                                                      
+                                                  });
                                                   
                                               }];
         
@@ -424,7 +482,7 @@
     FSAuthViewController *authController = [[FSAuthViewController alloc] initWithConfig:self.config source:self.source];
     authController.delegate = self;
     
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
         [self.navigationController pushViewController:authController animated:NO];
     }else{
         [self.navigationController pushViewController:authController animated:YES];

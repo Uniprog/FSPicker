@@ -46,7 +46,7 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
     [self setupActivityIndicator];
 
     //! Choose auth method
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] && 1) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
         [self authenticateWithGoogleSource];
     }else{
         [self setupWebView];
@@ -125,8 +125,15 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
                                               @"https://www.googleapis.com/auth/drive.readonly"];
     }
     
-    if ([self.source.identifier isEqualToString:FSSourceGmail] && 0) {
-        [GIDSignIn sharedInstance].scopes = @[@"https://www.googleapis.com/auth/userinfo.email"];
+    if ([self.source.identifier isEqualToString:FSSourceGmail]) {
+        // kGTLRAuthScopeGmailMailGoogleCom
+        // kGTLRAuthScopeGmailMetadata
+        // kGTLRAuthScopeGmailModify
+        // kGTLRAuthScopeGmailReadonly
+        [GIDSignIn sharedInstance].scopes = @[@"https://www.googleapis.com/auth/userinfo.email",
+                                              @"https://mail.google.com/",
+                                              @"https://www.googleapis.com/auth/gmail.modify",
+                                              @"https://www.googleapis.com/auth/gmail.readonly"];
     }
     
     [self.activityIndicator startAnimating];
@@ -163,8 +170,18 @@ didSignInForUser:(GIDGoogleUser *)user
     
     if (error == nil && user) {
         self.config.user = user;
-        self.config.service = [[GTLRDriveService alloc] init];
-        self.config.service.authorizer = user.authentication.fetcherAuthorizer;
+        
+        if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
+            self.config.service = [[GTLRDriveService alloc] init];
+            self.config.service.authorizer = user.authentication.fetcherAuthorizer;
+        }
+        
+        if ([self.source.identifier isEqualToString:FSSourceGmail]) {
+            self.config.gmailService = [[GTLRGmailService alloc] init];
+            self.config.gmailService.authorizer = user.authentication.fetcherAuthorizer;
+        }
+        
+        
     }
     
     // Perform any operations on signed in user here.

@@ -12,6 +12,7 @@
 
 #import <Google/SignIn.h>
 #import "GTLRDrive.h"
+#import "GTLRGmail.h"
 
 
 @import UIKit;
@@ -42,6 +43,8 @@ extern NSString *const FSSourceCloudDrive;
 //! Google user for Google servics
 @property (strong, nonatomic) GIDGoogleUser *user;
 @property (strong, nonatomic) GTLRDriveService* service;
+@property (strong, nonatomic) GTLRGmailService* gmailService;
+
 
 /// FSPickerController only.
 @property (nonatomic, copy) NSArray<FSMimeType> *mimeTypes;

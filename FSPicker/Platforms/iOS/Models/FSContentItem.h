@@ -8,6 +8,7 @@
 
 @import Foundation;
 #import "GTLRDrive.h"
+#import "GTLRGmail.h"
 
 
 @interface FSContentItem : NSObject
@@ -26,6 +27,12 @@
 @property (nonatomic, copy) NSString *fileExtension;
 @property (nonatomic, copy) NSString *fullFileExtension;
 
+//! Gmail
+@property (nonatomic, copy) NSString *messageId;
+@property (nonatomic, copy) NSString *attachmentId;
+
 + (NSArray<FSContentItem *> *)itemsFromResponseJSON:(NSDictionary *)json;
 + (NSArray<FSContentItem *> *)itemsFromGTLRDriveFileList:(GTLRDrive_FileList *)fileList;
++ (NSArray<FSContentItem *> *)itemsFromGTLRGmailMessages:(NSArray *)messages;
++ (NSArray<FSContentItem *> *)itemsFromGTLRGmailMessage:(GTLRGmail_Message *)message;
 @end

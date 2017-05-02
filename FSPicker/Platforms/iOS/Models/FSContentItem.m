@@ -55,6 +55,82 @@
     return self;
 }
 
+- (instancetype)initWithGTLRGmailMessage:(GTLRGmail_Message *)messge {
+    if (self = [super init]) {
+        
+        NSDictionary* dictionary = messge.JSON;
+        
+        NSDictionary* payload = dictionary[@"payload"];
+        NSDictionary* headers = payload[@"headers"];
+        NSString* filename = payload[@"filename"];
+
+        NSString* subject;
+        NSString* from;
+        NSString* date;
+        
+        for (NSDictionary* item in headers) {
+            if ([item[@"name"] isEqualToString:@"Subject"]){
+                subject = item[@"value"];
+            }
+            if ([item[@"name"] isEqualToString:@"From"]){
+                from = item[@"value"];
+            }
+            if ([item[@"name"] isEqualToString:@"Date"]){
+                date = item[@"value"];
+            }
+        }
+        
+        BOOL isFile = NO;
+        if (filename.length > 0){
+            isFile = YES;
+        }
+        
+        _linkPath = dictionary[@"id"];
+        _fileName = [NSString stringWithFormat:@"%@", subject];
+        _mimeType = payload[@"mimeType"];
+
+        _isDirectory = !isFile;
+        if (isFile) {
+            _isDirectory = NO;
+            
+        }else{
+            _isDirectory = YES;
+            _thumbExists = NO;
+            _thumbnailURL = @"https://assets.filestackapi.com/api/ec2c0e0/img/thumbnails/envelope.png";
+        }
+        
+        _modified = date;
+        
+    }
+    
+    return self;
+}
+
+- (instancetype)initWithGTLRGmailMessagePart:(NSDictionary *)part {
+    if (self = [super init]) {
+        
+        NSDictionary* dictionary = part;
+        
+        NSDictionary* body = dictionary[@"body"];
+        
+        _size = [body[@"size"] stringValue];
+        
+        _attachmentId = body[@"attachmentId"];
+        _fileName = dictionary[@"filename"];
+        _mimeType = dictionary[@"mimeType"];
+        
+        _isDirectory = NO;
+        
+        _thumbExists = NO;
+        _thumbnailURL = @"https://assets.filestackapi.com/api/ec2c0e0/img/thumbnails/envelope.png";
+        
+    }
+    
+    return self;
+}
+
+
+
 + (NSArray<FSContentItem *> *)itemsFromResponseJSON:(NSDictionary *)json {
     NSArray<NSDictionary *> *content = [[NSArray alloc] initWithArray:json[@"contents"]];
     NSMutableArray<FSContentItem *> *items = [[NSMutableArray alloc] init];
@@ -76,6 +152,40 @@
         [items addObject:contentItem];
     }
     
+    return items;
+}
+
++ (NSArray<FSContentItem *> *)itemsFromGTLRGmailMessages:(NSArray *)messages {
+    NSMutableArray<FSContentItem *> *items = [[NSMutableArray alloc] init];
+    
+    for (GTLRGmail_Message* message in messages) {
+        FSContentItem *contentItem = [[FSContentItem alloc] initWithGTLRGmailMessage:message];
+        [items addObject:contentItem];
+    }
+    
+    return items;
+}
+
++ (NSArray<FSContentItem *> *)itemsFromGTLRGmailMessage:(GTLRGmail_Message *)message{
+    
+    NSMutableArray<FSContentItem *> *items = [[NSMutableArray alloc] init];
+
+    
+    NSDictionary* dictionary = message.JSON;
+    NSDictionary* payload = dictionary[@"payload"];
+    NSDictionary* parts = payload[@"parts"];
+
+    for (NSDictionary* part in parts) {
+        
+        NSDictionary* body = part[@"body"];
+        NSString* attachmentId = body[@"attachmentId"];
+        
+        if (attachmentId.length != 0) {
+            FSContentItem *contentItem = [[FSContentItem alloc] initWithGTLRGmailMessagePart:part];
+            contentItem.messageId = message.identifier;
+            [items addObject:contentItem];
+        }
+    }
     return items;
 }
 
