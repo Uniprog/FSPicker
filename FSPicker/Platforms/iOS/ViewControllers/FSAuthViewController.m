@@ -151,14 +151,14 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
 // The view controller should be displayed modally (via UIViewController's |presentViewController|
 // method, and not pushed unto a navigation controller's stack.
 - (void)signIn:(GIDSignIn *)signIn presentViewController:(UIViewController *)viewController{
-    [self.navigationController presentViewController:viewController animated:YES completion:nil];
+    [self.navigationController presentViewController:viewController animated:NO completion:nil];
 }
 
 // If implemented, this method will be invoked when sign in needs to dismiss a view controller.
 // Typically, this should be implemented by calling |dismissViewController| on the passed
 // view controller.
 - (void)signIn:(GIDSignIn *)signIn dismissViewController:(UIViewController *)viewController{
-    [self dismissViewControllerAnimated:YES completion:nil];
+    [self dismissViewControllerAnimated:NO completion:nil];
 }
 
 
@@ -193,11 +193,13 @@ didSignInForUser:(GIDGoogleUser *)user
     NSString *email = user.profile.email;
     // ...
     
-    if ([self.delegate respondsToSelector:@selector(didAuthenticateWithSource)]) {
-        [self.delegate didAuthenticateWithSource];
+    if (error == nil) {
+        if ([self.delegate respondsToSelector:@selector(didAuthenticateWithSource)]) {
+            [self.delegate didAuthenticateWithSource];
+        }
     }
     
-    [self.navigationController popViewControllerAnimated:YES];
+    [self.navigationController popViewControllerAnimated:NO];
 }
 
 - (void)signIn:(GIDSignIn *)signIn

@@ -364,6 +364,7 @@
                                                                   NSError *callbackError) {
                                                   
                                                   if (callbackError.code == 403 || callbackError.code == 401) {
+                                                      [self.activityIndicator stopAnimating];
                                                       [self authenticateWithCurrentSource];
                                                       return;
                                                   }
