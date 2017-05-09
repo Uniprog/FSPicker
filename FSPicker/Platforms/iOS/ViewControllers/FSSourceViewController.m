@@ -429,7 +429,7 @@
         GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
         query.fields = @"kind,nextPageToken,files";
         
-        //query.orderBy = @"modifiedDate";
+        query.orderBy = @"createdTime desc";
         query.spaces = @"photos";
 
         if (self.nextPage) {
