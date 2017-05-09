@@ -274,10 +274,8 @@
     
         GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
         query.fields = @"kind,nextPageToken,files";
-        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
 
         query.orderBy = @"folder,name";
-       // query.spaces = @"photos";
         
         if (self.loadPath) {
             query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
@@ -302,6 +300,12 @@
                                   }
                                   
                                   self.nextPage = fileList.nextPageToken;
+                                  
+                                  if (self.nextPage) {
+                                      self.lastPage = NO;
+                                  } else {
+                                      self.lastPage = YES;
+                                  }
                                   
                                   NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
                                   [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
@@ -348,10 +352,7 @@
         
         GTLRGmailQuery_UsersMessagesList *query = [GTLRGmailQuery_UsersMessagesList queryWithUserId:@"me"];
         query.fields = @"nextPageToken,messages";
-        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
         
-        //query.orderBy = @"folder,name";
-        //“has:attachment in:inbox”
         query.q = [NSString stringWithFormat:@"has:attachment in:inbox"];
         query.maxResults = 20;
         
@@ -427,18 +428,10 @@
         
         GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
         query.fields = @"kind,nextPageToken,files";
-        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
         
-        query.orderBy = @"folder,name";
+        //query.orderBy = @"modifiedDate";
         query.spaces = @"photos";
-        
-        //        if (self.loadPath) {
-        //            query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
-        //        }else{
-        //            query.q = [NSString stringWithFormat:@"'%@' IN parents", @"root"];
-        //        }
-        
-        
+
         if (self.nextPage) {
             query.pageToken = self.nextPage;
         }
@@ -455,6 +448,12 @@
                                                   }
                                                   
                                                   self.nextPage = fileList.nextPageToken;
+                                                  
+                                                  if (self.nextPage) {
+                                                      self.lastPage = NO;
+                                                  } else {
+                                                      self.lastPage = YES;
+                                                  }
                                                   
                                                   NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
                                                   [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
