@@ -46,7 +46,9 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
     [self setupActivityIndicator];
 
     //! Choose auth method
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]
+        || [self.source.identifier isEqualToString:FSSourceGmail]
+        || [self.source.identifier isEqualToString:FSSourcePicasa]) {
         [self authenticateWithGoogleSource];
     }else{
         [self setupWebView];
@@ -125,6 +127,10 @@ static NSString *const fsAuthURL = @"%@/api/client/%@/auth/open?m=*/*&key=%@&id=
                                               @"https://www.googleapis.com/auth/drive.readonly"];
     }
     
+    if ([self.source.identifier isEqualToString:FSSourcePicasa]) {
+        [GIDSignIn sharedInstance].scopes = @[@"https://www.googleapis.com/auth/drive.photos.readonly"];
+    }
+    
     if ([self.source.identifier isEqualToString:FSSourceGmail]) {
         // kGTLRAuthScopeGmailMailGoogleCom
         // kGTLRAuthScopeGmailMetadata
@@ -171,7 +177,9 @@ didSignInForUser:(GIDGoogleUser *)user
     if (error == nil && user) {
         self.config.user = user;
         
-        if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
+        if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] ||
+            [self.source.identifier isEqualToString:FSSourcePicasa]) {
+            
             self.config.service = [[GTLRDriveService alloc] init];
             self.config.service.authorizer = user.authentication.fetcherAuthorizer;
         }
@@ -180,8 +188,7 @@ didSignInForUser:(GIDGoogleUser *)user
             self.config.gmailService = [[GTLRGmailService alloc] init];
             self.config.gmailService.authorizer = user.authentication.fetcherAuthorizer;
         }
-        
-        
+
     }
     
     // Perform any operations on signed in user here.

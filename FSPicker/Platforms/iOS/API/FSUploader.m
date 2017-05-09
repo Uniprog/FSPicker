@@ -42,7 +42,8 @@
 
 - (void)uploadCloudItems:(NSArray<FSContentItem *> *)items {
     
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]
+        || [self.source.identifier isEqualToString:FSSourcePicasa]) {
         [self uploadGoogleServiceItems:items];
         return;
     }

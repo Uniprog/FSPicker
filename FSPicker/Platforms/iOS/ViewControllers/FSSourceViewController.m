@@ -209,7 +209,9 @@
 
 - (void)loadSourceContent:(void (^)(BOOL success))completion isNextPage:(BOOL)isNextPage {
     
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]
+        || [self.source.identifier isEqualToString:FSSourceGmail]
+        || [self.source.identifier isEqualToString:FSSourcePicasa]) {
         [self loadGoogleServiceSourceContent:completion isNextPage:isNextPage];
         return;
     }
@@ -275,6 +277,7 @@
         //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
 
         query.orderBy = @"folder,name";
+       // query.spaces = @"photos";
         
         if (self.loadPath) {
             query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
@@ -420,6 +423,53 @@
         
     }
 
+    if ([self.source.identifier isEqualToString:FSSourcePicasa]) {
+        
+        GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
+        query.fields = @"kind,nextPageToken,files";
+        //query.fields = @"kind,nextPageToken, files(size,name,id,mimeType,modifiedTime,thumbnailLink,hasThumbnail,kind)";
+        
+        query.orderBy = @"folder,name";
+        query.spaces = @"photos";
+        
+        //        if (self.loadPath) {
+        //            query.q = [NSString stringWithFormat:@"'%@' IN parents", self.loadPath];
+        //        }else{
+        //            query.q = [NSString stringWithFormat:@"'%@' IN parents", @"root"];
+        //        }
+        
+        
+        if (self.nextPage) {
+            query.pageToken = self.nextPage;
+        }
+        
+        self.fileListTicket = [self.config.service executeQuery:query
+                                              completionHandler:^(GTLRServiceTicket *callbackTicket,
+                                                                  GTLRDrive_FileList *fileList,
+                                                                  NSError *callbackError) {
+                                                  [self.activityIndicator stopAnimating];
+                                                  
+                                                  if (callbackError.code == 403) {
+                                                      [self authenticateWithCurrentSource];
+                                                      return;
+                                                  }
+                                                  
+                                                  self.nextPage = fileList.nextPageToken;
+                                                  
+                                                  NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
+                                                  [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  
+                                                  self.fileListTicket = nil;
+                                                  
+                                                  if (completion) {
+                                                      completion(callbackError == nil);
+                                                  }
+                                                  
+                                              }];
+        
+    }
+
   
 }
 
@@ -483,7 +533,10 @@
     FSAuthViewController *authController = [[FSAuthViewController alloc] initWithConfig:self.config source:self.source];
     authController.delegate = self;
     
-    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive] || [self.source.identifier isEqualToString:FSSourceGmail]) {
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]
+        || [self.source.identifier isEqualToString:FSSourceGmail]
+        || [self.source.identifier isEqualToString:FSSourcePicasa]) {
+        
         [self.navigationController pushViewController:authController animated:NO];
     }else{
         [self.navigationController pushViewController:authController animated:YES];
