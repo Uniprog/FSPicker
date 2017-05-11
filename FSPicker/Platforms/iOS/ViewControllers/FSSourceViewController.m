@@ -58,20 +58,20 @@
         _collectionViewController = [[FSSourceCollectionViewController alloc] initWithCollectionViewLayout:[[UICollectionViewFlowLayout alloc] init]];
         _collectionViewController.selectMultiple = config.selectMultiple;
     }
-
+    
     return self;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-
+    
     self.tableViewController.sourceController = self;
     self.collectionViewController.sourceController = self;
-
+    
     self.title = self.source.name;
     self.automaticallyAdjustsScrollViewInsets = NO;
     self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Back" style:UIBarButtonItemStylePlain target:nil action:nil];
-
+    
     if (self.inListView) {
         [self addTableViewController];
         self.tableViewController.alreadyDisplayed = YES;
@@ -79,7 +79,7 @@
         [self addCollectionViewController];
         self.collectionViewController.alreadyDisplayed = YES;
     }
-
+    
     [self setupListGridSwitchButton];
     [self setupActivityIndicator];
     [self setupToolbar];
@@ -112,7 +112,7 @@
         self.navigationController.toolbar.barTintColor = [FSBarButtonItem appearance].backgroundColor;
         self.navigationController.toolbar.tintColor = [FSBarButtonItem appearance].normalTextColor;
     }
-
+    
     if (self.selectedContent.count > 0) {
         [self updateListAndGridInsetsForToolbarHidden:NO];
         [self.navigationController setToolbarHidden:NO animated:YES];
@@ -132,7 +132,7 @@
 
 - (void)updateToolbarButtonTitle {
     NSString *title;
-
+    
     if ((long)self.selectedContent.count > self.config.maxFiles && self.config.maxFiles != 0) {
         title = [NSString stringWithFormat:@"Maximum %lu file%@", (long)self.config.maxFiles, self.config.maxFiles > 1 ? @"s" : @""];
         self.uploadButton.enabled = NO;
@@ -140,7 +140,7 @@
         title = [NSString stringWithFormat:@"Upload %lu file%@", (unsigned long)self.selectedContent.count, self.selectedContent.count > 1 ? @"s" : @""];
         self.uploadButton.enabled = YES;
     }
-
+    
     [self.uploadButton setTitle:title];
 }
 
@@ -151,11 +151,11 @@
 - (void)uploadSelectedContents {
     FSProgressModalViewController *uploadModal = [[FSProgressModalViewController alloc] init];
     uploadModal.modalPresentationStyle = UIModalPresentationOverCurrentContext;
-
+    
     FSUploader *uploader = [[FSUploader alloc] initWithConfig:self.config source:self.source];
     uploader.uploadModalDelegate = uploadModal;
     uploader.pickerDelegate = (FSPickerController *)self.navigationController;
-
+    
     [self presentViewController:uploadModal animated:YES completion:nil];
     [uploader uploadCloudItems:self.selectedContent];
     [self clearSelectedContent];
@@ -179,29 +179,29 @@
 - (void)setupListGridSwitchButton {
     UIImage *listGridImage = [self imageForViewType];
     UIImage *logoutImage = [FSImage iconNamed:@"icon-logout"];
-
+    
     UIBarButtonItem *listGridButton = [[UIBarButtonItem alloc] initWithImage:listGridImage
                                                                        style:UIBarButtonItemStylePlain
                                                                       target:self
                                                                       action:@selector(listGridSwitch:)];
-
+    
     UIBarButtonItem *logoutButton = [[UIBarButtonItem alloc] initWithImage:logoutImage
                                                                      style:UIBarButtonItemStylePlain
                                                                     target:self
                                                                     action:@selector(logout)];
-
+    
     self.navigationItem.rightBarButtonItems = @[logoutButton, listGridButton];
 }
 
 - (UIImage *)imageForViewType {
     NSString *imageName;
-
+    
     if (self.inListView) {
         imageName = @"icon-grid";
     } else {
         imageName = @"icon-list";
     }
-
+    
     return [FSImage iconNamed:imageName];
 }
 
@@ -220,21 +220,21 @@
         self.initialContentLoad = NO;
         [self.activityIndicator startAnimating];
     }
-
+    
     FSSession *session = [[FSSession alloc] initWithConfig:self.config mimeTypes:self.source.mimeTypes];
-
+    
     if (self.nextPage) {
         session.nextPage = self.nextPage;
     }
-
+    
     NSDictionary *parameters = [session toQueryParametersWithFormat:@"info"];
     NSString *contentPath = self.loadPath ? self.loadPath : self.source.rootPath;
-
+    
     [Filestack getContentForPath:contentPath parameters:parameters completionHandler:^(NSDictionary *responseJSON, NSError *error) {
         [self.activityIndicator stopAnimating];
-
+        
         id nextPage = responseJSON[@"next"];
-
+        
         if (nextPage && nextPage != [NSNull null]) {
             self.nextPage = [nextPage respondsToSelector:@selector(stringValue)] ? [nextPage stringValue] : nextPage;
             self.lastPage = NO;
@@ -242,7 +242,7 @@
             self.lastPage = self.nextPage != nil;
             self.nextPage = nil;
         }
-
+        
         if (error) {
             self.nextPage = nil;
             self.lastPage = NO;
@@ -256,7 +256,7 @@
             [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
             [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
         }
-
+        
         if (completion) {
             completion(error == nil);
         }
@@ -271,10 +271,10 @@
     }
     
     if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]) {
-    
+        
         GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
         query.fields = @"kind,nextPageToken,files";
-
+        
         query.orderBy = @"folder,name";
         
         if (self.loadPath) {
@@ -282,42 +282,43 @@
         }else{
             query.q = [NSString stringWithFormat:@"'%@' IN parents", @"root"];
         }
-
+        
         
         if (self.nextPage) {
             query.pageToken = self.nextPage;
         }
         
         self.fileListTicket = [self.config.service executeQuery:query
-                              completionHandler:^(GTLRServiceTicket *callbackTicket,
-                                                  GTLRDrive_FileList *fileList,
-                                                  NSError *callbackError) {
-                                  [self.activityIndicator stopAnimating];
-
-                                  if (callbackError.code == 403) {
-                                      [self authenticateWithCurrentSource];
-                                      return;
-                                  }
-                                  
-                                  self.nextPage = fileList.nextPageToken;
-                                  
-                                  if (self.nextPage) {
-                                      self.lastPage = NO;
-                                  } else {
-                                      self.lastPage = YES;
-                                  }
-                                  
-                                  NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
-                                  [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
-                                  [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
-            
-                                  self.fileListTicket = nil;
-                                  
-                                  if (completion) {
-                                      completion(callbackError == nil);
-                                  }
-
-                              }];
+                                              completionHandler:^(GTLRServiceTicket *callbackTicket,
+                                                                  GTLRDrive_FileList *fileList,
+                                                                  NSError *callbackError) {
+                                                  [self.activityIndicator stopAnimating];
+                                                  
+                                                  if (callbackError.code == 403 || callbackError.code == 400) {
+                                                      [self authenticateWithCurrentSource];
+                                                      return;
+                                                  }
+                                                  
+                                                  self.nextPage = fileList.nextPageToken;
+                                                  
+                                                  if (self.nextPage) {
+                                                      self.lastPage = NO;
+                                                  } else {
+                                                      self.lastPage = YES;
+                                                  }
+                                                  
+                                                  [self enableUI];
+                                                  NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
+                                                  [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                  
+                                                  self.fileListTicket = nil;
+                                                  
+                                                  if (completion) {
+                                                      completion(callbackError == nil);
+                                                  }
+                                                  
+                                              }];
         
     }
     
@@ -332,9 +333,10 @@
                                                      GTLRGmail_Message* message,
                                                      NSError * _Nullable callbackError) {
                                      [self.activityIndicator stopAnimating];
-
+                                     
                                      NSLog(@"%@", message.JSON);
                                      
+                                     [self enableUI];
                                      NSArray *items = [FSContentItem itemsFromGTLRGmailMessage:message];
                                      [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
                                      [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
@@ -346,7 +348,7 @@
                                      }
                                      
                                  }];
-
+            
             return;
         }
         
@@ -361,69 +363,70 @@
         }
         
         dispatch_group_t serviceGroup = dispatch_group_create();
-
+        
         self.fileListTicket = [self.config.gmailService executeQuery:query
-                                              completionHandler:^(GTLRServiceTicket *callbackTicket,
-                                                                  GTLRGmail_ListMessagesResponse *fileList,
-                                                                  NSError *callbackError) {
-                                                  
-                                                  if (callbackError.code == 403 || callbackError.code == 401) {
-                                                      [self.activityIndicator stopAnimating];
-                                                      [self authenticateWithCurrentSource];
-                                                      return;
-                                                  }
-                                                  
-                                                  self.nextPage = fileList.nextPageToken;
-                                                  
-                                                  if (self.nextPage) {
-                                                      self.lastPage = NO;
-                                                  } else {
-                                                      self.lastPage = YES;
-                                                  }
-                                                  
-                                                  NSMutableArray* messages = [fileList.messages mutableCopy];
-                                                  
-                                                  
-                                                  for (GTLRGmail_Message* m in fileList.messages) {
-                                                      GTLRGmailQuery_UsersMessagesGet* mq = [GTLRGmailQuery_UsersMessagesGet queryWithUserId:@"me" identifier:m.identifier];
-                                                      
-                                                      dispatch_group_enter(serviceGroup);
-                                                      [self.config.gmailService executeQuery:mq
-                                                                           completionHandler:^(GTLRServiceTicket * _Nonnull callbackTicket,
-                                                                                               GTLRGmail_Message* message,
-                                                                                               NSError * _Nullable callbackError) {
-                                                                               NSLog(@"%@", message.JSON);
-                                                                               for (GTLRGmail_Message* m in fileList.messages){
-                                                                                   if ([m.identifier isEqualToString:message.identifier]) {
-                                                                                       [messages replaceObjectAtIndex:[fileList.messages indexOfObject:m] withObject:message];
-                                                                                   }
-                                                                               }
-                                                                               
-                                                                               dispatch_group_leave(serviceGroup);
-                                                                           }];
-                                                  }
-                                                  
-                                                  
-                                                  dispatch_group_notify(serviceGroup,dispatch_get_main_queue(),^{
-                                                      // Won't get here until everything has finished
-                                                      [self.activityIndicator stopAnimating];
-
-                                                      NSArray *items = [FSContentItem itemsFromGTLRGmailMessages:messages];
-                                                      [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
-                                                      [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
-                                                      
-                                                      self.fileListTicket = nil;
-                                                      
-                                                      if (completion) {
-                                                          completion(callbackError == nil);
-                                                      }
-                                                      
-                                                  });
-                                                  
-                                              }];
+                                                   completionHandler:^(GTLRServiceTicket *callbackTicket,
+                                                                       GTLRGmail_ListMessagesResponse *fileList,
+                                                                       NSError *callbackError) {
+                                                       
+                                                       if (callbackError.code == 403 || callbackError.code == 401) {
+                                                           [self.activityIndicator stopAnimating];
+                                                           [self authenticateWithCurrentSource];
+                                                           return;
+                                                       }
+                                                       
+                                                       self.nextPage = fileList.nextPageToken;
+                                                       
+                                                       if (self.nextPage) {
+                                                           self.lastPage = NO;
+                                                       } else {
+                                                           self.lastPage = YES;
+                                                       }
+                                                       
+                                                       NSMutableArray* messages = [fileList.messages mutableCopy];
+                                                       
+                                                       
+                                                       for (GTLRGmail_Message* m in fileList.messages) {
+                                                           GTLRGmailQuery_UsersMessagesGet* mq = [GTLRGmailQuery_UsersMessagesGet queryWithUserId:@"me" identifier:m.identifier];
+                                                           
+                                                           dispatch_group_enter(serviceGroup);
+                                                           [self.config.gmailService executeQuery:mq
+                                                                                completionHandler:^(GTLRServiceTicket * _Nonnull callbackTicket,
+                                                                                                    GTLRGmail_Message* message,
+                                                                                                    NSError * _Nullable callbackError) {
+                                                                                    NSLog(@"%@", message.JSON);
+                                                                                    for (GTLRGmail_Message* m in fileList.messages){
+                                                                                        if ([m.identifier isEqualToString:message.identifier]) {
+                                                                                            [messages replaceObjectAtIndex:[fileList.messages indexOfObject:m] withObject:message];
+                                                                                        }
+                                                                                    }
+                                                                                    
+                                                                                    dispatch_group_leave(serviceGroup);
+                                                                                }];
+                                                       }
+                                                       
+                                                       
+                                                       dispatch_group_notify(serviceGroup,dispatch_get_main_queue(),^{
+                                                           // Won't get here until everything has finished
+                                                           [self.activityIndicator stopAnimating];
+                                                           
+                                                           [self enableUI];
+                                                           NSArray *items = [FSContentItem itemsFromGTLRGmailMessages:messages];
+                                                           [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                           [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
+                                                           
+                                                           self.fileListTicket = nil;
+                                                           
+                                                           if (completion) {
+                                                               completion(callbackError == nil);
+                                                           }
+                                                           
+                                                       });
+                                                       
+                                                   }];
         
     }
-
+    
     if ([self.source.identifier isEqualToString:FSSourcePicasa]) {
         
         GTLRDriveQuery_FilesList *query = [GTLRDriveQuery_FilesList query];
@@ -431,7 +434,7 @@
         
         query.orderBy = @"createdTime desc";
         query.spaces = @"photos";
-
+        
         if (self.nextPage) {
             query.pageToken = self.nextPage;
         }
@@ -442,7 +445,7 @@
                                                                   NSError *callbackError) {
                                                   [self.activityIndicator stopAnimating];
                                                   
-                                                  if (callbackError.code == 403) {
+                                                  if (callbackError.code == 403 || callbackError.code == 400) {
                                                       [self authenticateWithCurrentSource];
                                                       return;
                                                   }
@@ -455,6 +458,7 @@
                                                       self.lastPage = YES;
                                                   }
                                                   
+                                                  [self enableUI];
                                                   NSArray *items = [FSContentItem itemsFromGTLRDriveFileList:fileList];
                                                   [self.tableViewController contentDataReceived:items isNextPageData:isNextPage];
                                                   [self.collectionViewController contentDataReceived:items isNextPageData:isNextPage];
@@ -468,8 +472,8 @@
                                               }];
         
     }
-
-  
+    
+    
 }
 
 
@@ -484,15 +488,15 @@
 
 - (void)selectContentItem:(FSContentItem *)item atIndexPath:(NSIndexPath *)indexPath forTableView:(BOOL)tableView collectionView:(BOOL)collectionView {
     [self.selectedContent addObject:item];
-
+    
     if (tableView) {
         [self.tableViewController reloadRowAtIndexPath:indexPath];
     }
-
+    
     if (collectionView) {
         [self.collectionViewController reloadCellAtIndexPath:indexPath];
     }
-
+    
     if (self.config.selectMultiple) {
         [self updateToolbar];
     } else {
@@ -503,11 +507,11 @@
 - (void)deselectContentItem:(FSContentItem *)item atIndexPath:(NSIndexPath *)indexPath forTableView:(BOOL)tableView collectionView:(BOOL)collectionView {
     [self.selectedContent removeObject:item];
     [self updateToolbar];
-
+    
     if (tableView) {
         [self.tableViewController reloadRowAtIndexPath:indexPath];
     }
-
+    
     if (collectionView) {
         [self.collectionViewController reloadCellAtIndexPath:indexPath];
     }
@@ -553,17 +557,32 @@
     }];
     [alert addAction:confirmAction];
     [alert addAction:cancelAction];
-
+    
     [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)logoutFromGoogleService{
+    [GIDSignIn.sharedInstance signOut];
+    [[GIDSignIn sharedInstance] disconnect];
+    
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)performLogout {
     [self disableUI];
+    
+    if ([self.source.identifier isEqualToString:FSSourceGoogleDrive]
+        || [self.source.identifier isEqualToString:FSSourceGmail]
+        || [self.source.identifier isEqualToString:FSSourcePicasa]) {
+        [self logoutFromGoogleService];
+        return;
+    }
+    
     FSSession *session = [[FSSession alloc] initWithConfig:self.config];
     NSDictionary *parameters = [session toQueryParametersWithFormat:nil];
     UIAlertController *logoutAlert = [UIAlertController fsAlertLogout];
     [self presentViewController:logoutAlert animated:YES completion:nil];
-
+    
     [Filestack logoutFromSource:self.source.identifier externalDomains:self.source.externalDomains parameters:parameters completionHandler:^(NSError *error) {
         [logoutAlert dismissViewControllerAnimated:YES completion:nil];
         if (error) {
@@ -587,7 +606,7 @@
     for (UIBarButtonItem *button in self.navigationItem.rightBarButtonItems) {
         button.enabled = enabled;
     }
-
+    
     if (!disregardRefreshControl) {
         [self.tableViewController refreshControlEnabled:enabled];
         [self.collectionViewController refreshControlEnabled:enabled];
