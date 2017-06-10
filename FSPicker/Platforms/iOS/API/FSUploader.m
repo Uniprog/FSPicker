@@ -20,6 +20,9 @@
 @import MobileCoreServices;
 #import "GTLRBase64.h"
 
+#import "GTMSessionFetcher.h"
+#import "GTMSessionFetcherService.h"
+
 @interface FSUploader ()
 
 @property (nonatomic, strong) FSConfig *config;
