@@ -45,11 +45,22 @@ Pod::Spec.new do |s|
 
   s.resources = 'FSPicker/Shared/Resources/fsImages.xcassets', 'FSPicker/Shared/Resources/fsAllowedUrlPrefix.plist'
 
-    s.ios.dependency 'Filestack'
-    s.ios.dependency 'Google/SignIn'
+   s.ios.dependency 'Filestack'
+    #s.ios.dependency 'GoogleSignIn'
     s.ios.dependency 'GoogleAPIClientForREST'
     s.ios.dependency 'GoogleAPIClientForREST/Drive'
     s.ios.dependency 'GoogleAPIClientForREST/Gmail'
+	
+	s.ios.preserve_paths = 'GoogleSymbolUtilities.framework','GoogleSignInDependencies.framework','GoogleAppUtilities.framework','GoogleSignIn.framework'
+
+	s.ios.vendored_frameworks = 'GoogleSymbolUtilities.framework','GoogleSignInDependencies.framework','GoogleAppUtilities.framework','GoogleSignIn.framework'
+
+
+	s.ios.frameworks = 'SystemConfiguration'
+
+    s.osx.xcconfig = { 'LD_RUNPATH_SEARCH_PATHS' => '@loader_path/../Frameworks' }
+
+s.xcconfig = { 'FRAMEWORK_SEARCH_PATHS' => '"${PODS_ROOT}/GoogleSignIn.framework"' }
 
 
 end
