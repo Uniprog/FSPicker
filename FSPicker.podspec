@@ -58,9 +58,9 @@ Pod::Spec.new do |s|
 
 	s.ios.frameworks = 'SystemConfiguration'
 
- #   s.osx.xcconfig = { 'LD_RUNPATH_SEARCH_PATHS' => '@loader_path/../Frameworks' }
+    s.osx.xcconfig = { 'LD_RUNPATH_SEARCH_PATHS' => '@loader_path/../Frameworks' }
 
-#s.xcconfig = { 'FRAMEWORK_SEARCH_PATHS' => '"${PODS_ROOT}/GoogleSignIn.framework"' }
+s.xcconfig = { 'FRAMEWORK_SEARCH_PATHS' => '"${PODS_ROOT}/GoogleSignIn.framework"' }
 
 
 end
